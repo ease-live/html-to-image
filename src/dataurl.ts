@@ -37,42 +37,11 @@ export async function fetchAsDataURL<T>(
   })
 }
 
-const cache: { [url: string]: string } = {}
-
-function getCacheKey(
-  url: string,
-  contentType: string | undefined,
-  includeQueryParams: boolean | undefined,
-) {
-  let key = url.replace(/\?.*/, '')
-
-  if (includeQueryParams) {
-    key = url
-  }
-
-  // font resource
-  if (/ttf|otf|eot|woff2?/i.test(key)) {
-    key = key.replace(/.*\//, '')
-  }
-
-  return contentType ? `[${contentType}]${key}` : key
-}
-
 export async function resourceToDataURL(
   resourceUrl: string,
   contentType: string | undefined,
   options: Options,
 ) {
-  const cacheKey = getCacheKey(
-    resourceUrl,
-    contentType,
-    options.includeQueryParams,
-  )
-
-  if (cache[cacheKey] != null) {
-    return cache[cacheKey]
-  }
-
   // ref: https://developer.mozilla.org/en/docs/Web/API/XMLHttpRequest/Using_XMLHttpRequest#Bypassing_the_cache
   if (options.cacheBust) {
     // eslint-disable-next-line no-param-reassign
@@ -88,6 +57,10 @@ export async function resourceToDataURL(
         if (!contentType) {
           // eslint-disable-next-line no-param-reassign
           contentType = res.headers.get('Content-Type') || ''
+        }
+        if (contentType === 'application/octet-stream') {
+          // eslint-disable-next-line no-param-reassign
+          contentType = 'image/png'
         }
         return getContentFromDataUrl(result)
       },
@@ -106,6 +79,5 @@ export async function resourceToDataURL(
     }
   }
 
-  cache[cacheKey] = dataURL
   return dataURL
 }
