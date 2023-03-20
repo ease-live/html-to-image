@@ -1,0 +1,132 @@
+# Ease Live circleci script - version: 1.13.4 type: npm
+n_s_f: &notify_slack_fail
+  name: Notify on fail
+  working_directory: build_scripts
+  command: npm i && npm run slack-circle -- --fail
+  when: on_fail
+
+n_s_s: &notify_slack_success
+  name: Notify on success
+  working_directory: build_scripts
+  command: npm i && npm run slack-circle -- --success
+  when: on_success
+
+n_b_s: &notify_build_success
+  name: Notify on success
+  working_directory: build_scripts
+  command: npm i && npm run slack-circle -- --success && npm run notify-onFinish
+  when: on_success
+
+jobs:
+  pre_build:
+    docker:
+      - image: cimg/node:lts
+    steps:
+      - checkout
+      # download the scripts to setup npm
+      - run:
+          name: Get latest 1.* version of build_scripts from Artifactory
+          command: |
+            latest_version=$(curl -u ${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} 'https://easelive.jfrog.io/artifactory/api/search/latestVersion?g=ease-live&a=build_scripts&repos=generic-local&v=2.%2A');
+            curl -u ${ARTIFACTORY_USER}:${ARTIFACTORY_PASS} -O "https://easelive.jfrog.io/artifactory/generic-local/ease-live/build_scripts/build_scripts-${latest_version}.zip";
+            unzip "build_scripts-${latest_version}.zip"
+      - run: bash build_scripts/create_build_json.sh
+      - persist_to_workspace:
+          root: ..
+          paths:
+            - project
+            - .ssh
+  build_and_test:
+    docker:
+      - image: cimg/node:lts-browsers
+    steps:
+      - attach_workspace:
+          at: ..
+      - run: sh build_scripts/setup_npmrc_file.sh
+      - restore_cache:
+          keys:
+            - v11-dependencies-{{ checksum "package-lock.json" }}
+      - run: npm ci --prefer-offline
+      - save_cache:
+          paths:
+            - ~/.npm
+          key: v11-dependencies-{{ checksum "package-lock.json" }}
+      - run: HOOK_FILE_NAME=prebuild.sh sh build_scripts/run_job_hook.sh
+      - run: NODE_ENV=production npm run build
+      - run: npm run test
+      - run: HOOK_FILE_NAME=postbuild.sh sh build_scripts/run_job_hook.sh
+      - run:
+          <<: *notify_slack_fail
+      - run:
+          <<: *notify_slack_success
+      - persist_to_workspace:
+          root: ..
+          paths:
+            - project
+            - .ssh
+            - .npmrc
+
+  create_dev_version:
+    docker:
+      - image: $ECR_BASEBUILDER_IMAGE
+        aws_auth:
+          aws_access_key_id: $AWS_ECR_ACCESS_KEY_ID
+          aws_secret_access_key: $AWS_ECR_SECRET_ACCESS_KEY
+        environment:
+          SIXTY_COMPLETED_BUILD_TYPE: npm
+    steps:
+      - attach_workspace:
+          at: ..
+      - run: HOOK_FILE_NAME=predeploy_to_stage.sh sh build_scripts/run_job_hook.sh
+      - run: bash build_scripts/deploy_to_stage_npm.sh
+      - run: HOOK_FILE_NAME=postdeploy_to_stage.sh sh build_scripts/run_job_hook.sh
+      - run:
+          <<: *notify_slack_fail
+      - run:
+          <<: *notify_build_success
+
+  create_release_version:
+    docker:
+      - image: $ECR_BASEBUILDER_IMAGE
+        aws_auth:
+          aws_access_key_id: $AWS_ECR_ACCESS_KEY_ID
+          aws_secret_access_key: $AWS_ECR_SECRET_ACCESS_KEY
+        environment:
+          SIXTY_COMPLETED_BUILD_TYPE: npm
+    steps:
+      - attach_workspace:
+          at: ..
+      - run: HOOK_FILE_NAME=prerelease.sh sh build_scripts/run_job_hook.sh
+      - run: bash build_scripts/release_npm.sh
+      - run: HOOK_FILE_NAME=postrelease.sh sh build_scripts/run_job_hook.sh
+      - run:
+          <<: *notify_slack_fail
+      - run:
+          <<: *notify_build_success
+
+workflows:
+  version: 2
+  sixty_flow:
+    jobs:
+      - pre_build:
+          context: ease-live-general-context
+      - build_and_test:
+          context: ease-live-general-context
+          requires:
+            - pre_build
+      - create_dev_version:
+          context: ease-live-general-context
+          requires:
+            - build_and_test
+          filters:
+            branches:
+              ignore:
+                - master
+      - create_release_version:
+          context: ease-live-general-context
+          requires:
+            - build_and_test
+          filters:
+            branches:
+              only:
+                - master

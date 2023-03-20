@@ -1,6 +1,6 @@
 {
-  "name": "html-to-image",
-  "version": "1.11.11",
+  "name": "@ease-live/html-to-image",
+  "version": "1.0.0",
   "description": "Generates an image from a DOM node using HTML5 canvas and SVG.",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -22,6 +22,9 @@
     "vector",
     "svg"
   ],
+  "publishConfig": {
+    "registry": "https://easelive.jfrog.io/artifactory/api/npm/npm/"
+  },
   "scripts": {
     "lint": "eslint 'src/**/*.{js,ts}?(x)' --fix",
     "clean": "rimraf dist es lib",
@@ -45,9 +48,6 @@
       "eslint --fix"
     ]
   },
-  "release": {
-    "extends": "@bubkoo/semantic-release-config"
-  },
   "license": "MIT",
   "author": {
     "name": "bubkooo",
@@ -55,7 +55,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bubkoo/html-to-image.git"
+    "url": "git+https://github.com/ease-live/html-to-image.git"
   },
   "bugs": {
     "url": "https://github.com/bubkoo/html-to-image/issues"
