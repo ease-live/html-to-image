@@ -91,4 +91,6 @@ export interface Options {
    *
    */
   fetchRequestInit?: RequestInit
+
+  cssIgnoreList?: Array<string>
 }

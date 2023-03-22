@@ -228,11 +228,11 @@ export async function embedWebFonts<T extends HTMLElement>(
       ? null
       : await getWebFontCSS(clonedNode, options)
 
-  if (cssText) {
+  if (cssText && clonedNode?.textContent?.length) {
     const styleNode = document.createElement('style')
-    const sytleContent = document.createTextNode(cssText)
+    const styleContent = document.createTextNode(cssText)
 
-    styleNode.appendChild(sytleContent)
+    styleNode.appendChild(styleContent)
 
     if (clonedNode.firstChild) {
       clonedNode.insertBefore(styleNode, clonedNode.firstChild)
