@@ -192,20 +192,26 @@ export function createImage(url: string): Promise<HTMLImageElement> {
   })
 }
 
+const xmlSerializer: XMLSerializer = new XMLSerializer()
 export async function svgToDataURL(svg: SVGElement): Promise<string> {
   return Promise.resolve()
-    .then(() => new XMLSerializer().serializeToString(svg))
+    .then(() => xmlSerializer.serializeToString(svg))
     .then((html) => `data:image/svg+xml;charset=utf-8,${html}`)
 }
 
+let svg: SVGSVGElement
+let foreignObject: SVGForeignObjectElement
 export async function nodeToDataURL(
   node: HTMLElement,
   width: number,
   height: number,
 ): Promise<string> {
   const xmlns = 'http://www.w3.org/2000/svg'
-  const svg = document.createElementNS(xmlns, 'svg')
-  const foreignObject = document.createElementNS(xmlns, 'foreignObject')
+  if (!svg) svg = document.createElementNS(xmlns, 'svg')
+  svg.replaceChildren()
+  if (!foreignObject)
+    foreignObject = document.createElementNS(xmlns, 'foreignObject')
+  foreignObject.replaceChildren()
 
   svg.setAttribute('width', `${width}`)
   svg.setAttribute('height', `${height}`)

@@ -1,4 +1,5 @@
 import { Options } from './types'
+import FR from './file-reader'
 
 function getContentFromDataUrl(dataURL: string) {
   return dataURL.split(/,/)[1]
@@ -12,6 +13,7 @@ export function makeDataUrl(content: string, mimeType: string) {
   return `data:${mimeType};base64,${content}`
 }
 
+const reader: FR = new FR()
 export async function fetchAsDataURL<T>(
   url: string,
   init: RequestInit | undefined,
@@ -23,17 +25,13 @@ export async function fetchAsDataURL<T>(
   }
   const blob = await res.blob()
   return new Promise<T>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onerror = reject
-    reader.onloadend = () => {
-      try {
-        resolve(process({ res, result: reader.result as string }))
-      } catch (error) {
-        reject(error)
-      }
-    }
-
-    reader.readAsDataURL(blob)
+    reader
+      .read(blob)
+      .then((result) => {
+        resolve(process({ res, result }))
+        reader.next()
+      })
+      .catch(reject)
   })
 }
 

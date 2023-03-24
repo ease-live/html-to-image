@@ -6,11 +6,11 @@ import { embedWebFonts, getWebFontCSS } from './embed-webfonts'
 import {
   getImageSize,
   getPixelRatio,
-  createImage,
   canvasToBlob,
   nodeToDataURL,
   checkCanvasDimensions,
 } from './util'
+import ImageLoader from './image-loader'
 
 export async function toSvg<T extends HTMLElement>(
   node: T,
@@ -25,16 +25,19 @@ export async function toSvg<T extends HTMLElement>(
   return datauri
 }
 
+let canvas: HTMLCanvasElement
+const imageLoader = new ImageLoader()
 export async function toCanvas<T extends HTMLElement>(
   node: T,
   options: Options = {},
 ): Promise<HTMLCanvasElement> {
   const { width, height } = getImageSize(node, options)
   const svg = await toSvg(node, options)
-  const img = await createImage(svg)
+  const img = await imageLoader.load(svg)
 
-  const canvas = document.createElement('canvas')
+  if (!canvas) canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')!
+  context.clearRect(0, 0, canvas.width, canvas.height)
   const ratio = options.pixelRatio || getPixelRatio()
   const canvasWidth = options.canvasWidth || width
   const canvasHeight = options.canvasHeight || height
@@ -54,7 +57,7 @@ export async function toCanvas<T extends HTMLElement>(
   }
 
   context.drawImage(img, 0, 0, canvas.width, canvas.height)
-
+  imageLoader.next()
   return canvas
 }
 
